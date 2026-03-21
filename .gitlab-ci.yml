@@ -11,4 +11,3 @@ include:
 include:
   - component: $CI_SERVER_FQDN/ci/semantic-release/release@~latest
   - template: Terraform-Module.gitlab-ci.yml
-
