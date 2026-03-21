@@ -1,0 +1,8 @@
+stages:
+  - test
+  - release
+  - deploy
+
+include:
+  - template: Terraform-Module.gitlab-ci.yml
+  - component: $CI_SERVER_FQDN/ci/semantic-release/semantic-release-simple@0.1.6
