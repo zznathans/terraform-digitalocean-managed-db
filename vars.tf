@@ -44,6 +44,7 @@ variable "node_count" {
 
 variable "backup_source" {
   type = string
+  default = ""
 }
 
 variable "project_id" {
