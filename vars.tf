@@ -79,3 +79,7 @@ variable "push_gcp_secret" {
 variable "gcp_region" {
     type = string
 }
+
+variable "gcp_project" {
+    type = string
+}

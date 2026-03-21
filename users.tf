@@ -6,7 +6,7 @@ resource "digitalocean_database_user" "user" {
 
 resource "google_secret_manager_regional_secret" "psql-user" {
   for_each  = var.push_gcp_secret ? toset(var.db_users) : toset([])
-  project   = var.project_id
+  project   = var.gcp_project
   location  = var.gcp_region
   secret_id = "${var.stack_name}-db-user-${each.value}"
 
