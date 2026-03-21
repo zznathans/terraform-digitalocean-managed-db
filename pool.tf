@@ -11,7 +11,7 @@ locals {
 resource "digitalocean_database_connection_pool" "pool" {
   for_each   = local.pool_combinations
   cluster_id = digitalocean_database_cluster.cluster.id
-  name       = each.value.user == each.value.db_name ? "${each.value.user}" : "${each.key}-pool"
+  name       = each.value.user == each.value.db_name ? "${each.value.user}" : "${each.key}"
   mode       = var.conn_pool_mode
   size       = var.conn_pool_size
   db_name    = each.value.db_name
