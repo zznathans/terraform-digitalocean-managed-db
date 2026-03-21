@@ -16,7 +16,7 @@ variable "db_names" {
 }
 
 variable "conn_pool_size" {
-  type    = int
+  type    = number
   default = 5
 }
 
@@ -43,7 +43,7 @@ variable "region" {
 }
 
 variable "node_count" {
-  type    = int
+  type    = number
   default = 1
 }
 
