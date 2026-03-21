@@ -70,3 +70,12 @@ variable "firewall_ips" {
   type    = list(any)
   default = []
 }
+
+variable "push_gcp_secret" {
+    type    = bool
+    default = false
+}
+
+variable "gcp_region" {
+    type = string
+}
