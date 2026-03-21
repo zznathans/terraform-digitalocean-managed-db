@@ -1,8 +1,3 @@
-variable "do_token" {
-  type    = string
-  default = ""
-}
-
 variable "stack_name" {
   type = string
 }
