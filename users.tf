@@ -1,5 +1,5 @@
 locals {
-  use_pools = length(var.db_names) > 0
+  use_pools = length(local.pool_combinations) > 0
 
   gcp_secret_iter = local.use_pools ? local.pool_combinations : {
     for u in var.db_users : u => { user = u, db_name = "" }
