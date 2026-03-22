@@ -16,7 +16,7 @@ resource "google_secret_manager_regional_secret_version" "metrics" {
   secret_data = jsonencode({
     metrics_username = data.digitalocean_database_metrics_credentials.metrics.username
     metrics_password = data.digitalocean_database_metrics_credentials.metrics.password
-    metrics_endpoint = digitalocean_database_cluster.cluster.metrics_endpoints[0].host
-    metrics_port    = digitalocean_database_cluster.cluster.metrics_endpoints[0].port
+    metrics_endpoint = digitalocean_database_cluster.cluster.metrics_endpoints.host
+    metrics_port    = digitalocean_database_cluster.cluster.metrics_endpoints.port
   })
 }
