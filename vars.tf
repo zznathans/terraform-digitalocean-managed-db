@@ -4,10 +4,12 @@ variable "stack_name" {
 
 variable "db_users" {
   type = list(any)
+  default = []
 }
 
 variable "db_names" {
   type = list(any)
+  default = []
 }
 
 variable "conn_pool_size" {
