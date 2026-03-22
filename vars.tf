@@ -85,3 +85,8 @@ variable "gcp_region" {
 variable "gcp_project" {
     type = string
 }
+
+variable "append_port_to_hostname" {
+    type    = bool
+    default = false
+}
