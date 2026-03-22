@@ -1,5 +1,5 @@
 resource "digitalocean_database_cluster" "cluster" {
-  name       = "${var.stack_name}-db"
+  name       = "${var.stack_name}"
   engine     = var.engine
   version    = var.engine_version
   region     = var.region
