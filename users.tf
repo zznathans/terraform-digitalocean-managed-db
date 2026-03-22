@@ -36,5 +36,6 @@ resource "google_secret_manager_regional_secret_version" "psql-user" {
     db_port     = local.use_pools ? digitalocean_database_connection_pool.pool[each.key].port : digitalocean_database_cluster.cluster.port
     db_user     = digitalocean_database_user.user[each.value.user].name
     db_password = digitalocean_database_user.user[each.value.user].password
+    db_name     = each.value.db_name != "" ? each.value.db_name : null
   })
 }
