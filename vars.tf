@@ -90,3 +90,8 @@ variable "append_port_to_hostname" {
     type    = bool
     default = false
 }
+
+variable "push_metrics_to_gcp_secret" {
+    type    = bool
+    default = false
+}

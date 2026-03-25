@@ -10,9 +10,10 @@ resource "digitalocean_database_user" "user" {
   for_each   = toset(var.db_users)
   cluster_id = digitalocean_database_cluster.cluster.id
   name       = each.value
+  settings {}
 }
 
-resource "google_secret_manager_regional_secret" "psql-user" {
+resource "google_secret_manager_regional_secret" "user" {
   for_each  = var.push_gcp_secret ? local.gcp_secret_iter : {}
   project   = var.gcp_project
   location  = var.gcp_region
@@ -24,9 +25,9 @@ resource "google_secret_manager_regional_secret" "psql-user" {
   }
 }
 
-resource "google_secret_manager_regional_secret_version" "psql-user" {
+resource "google_secret_manager_regional_secret_version" "user" {
   for_each    = var.push_gcp_secret ? local.gcp_secret_iter : {}
-  secret      = google_secret_manager_regional_secret.psql-user[each.key].id
+  secret      = google_secret_manager_regional_secret.user[each.key].id
   secret_data = jsonencode({
     db_host     = local.use_pools ? (
       var.append_port_to_hostname ? "${digitalocean_database_connection_pool.pool[each.key].host}:${digitalocean_database_connection_pool.pool[each.key].port}" : digitalocean_database_connection_pool.pool[each.key].host
