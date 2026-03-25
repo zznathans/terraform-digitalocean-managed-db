@@ -10,6 +10,7 @@ resource "digitalocean_database_user" "user" {
   for_each   = toset(var.db_users)
   cluster_id = digitalocean_database_cluster.cluster.id
   name       = each.value
+  settings {}
 }
 
 resource "google_secret_manager_regional_secret" "user" {
