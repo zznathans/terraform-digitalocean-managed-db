@@ -33,9 +33,9 @@ resource "google_secret_manager_regional_secret_version" "user" {
   secret      = google_secret_manager_regional_secret.user[each.key].id
   secret_data = jsonencode({
     db_host     = local.use_pools ? (
-      var.append_port_to_hostname ? "${digitalocean_database_connection_pool.pool[each.key].host}:${digitalocean_database_connection_pool.pool[each.key].port}" : digitalocean_database_connection_pool.pool[each.key].host
+      var.append_port_to_hostname ? "${digitalocean_database_connection_pool.pool[each.key].private_host}:${digitalocean_database_connection_pool.pool[each.key].port}" : digitalocean_database_connection_pool.pool[each.key].private_host
     ) : (
-      var.append_port_to_hostname ? "${digitalocean_database_cluster.cluster.host}:${digitalocean_database_cluster.cluster.port}" : digitalocean_database_cluster.cluster.host
+      var.append_port_to_hostname ? "${digitalocean_database_cluster.cluster.private_host}:${digitalocean_database_cluster.cluster.port}" : digitalocean_database_cluster.cluster.private_host
     )
     db_port     = local.use_pools ? digitalocean_database_connection_pool.pool[each.key].port : digitalocean_database_cluster.cluster.port
     db_user     = digitalocean_database_user.user[each.value.user].name
