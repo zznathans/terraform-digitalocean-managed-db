@@ -95,3 +95,7 @@ variable "push_metrics_to_gcp_secret" {
     type    = bool
     default = false
 }
+
+variable "vpc_name" {
+  type = string
+}
