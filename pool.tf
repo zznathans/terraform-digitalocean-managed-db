@@ -1,9 +1,9 @@
 locals {
   pool_combinations = var.engine == "pg" ? {
-    for combo in setproduct(var.db_users, var.db_names) :
-    "${combo[0]}-${combo[1]}" => {
-      user    = combo[0]
-      db_name = combo[1]
+    for idx, u in var.db_users :
+    "${u}-${length(var.db_names) > idx ? var.db_names[idx] : u}" => {
+      user    = u
+      db_name = length(var.db_names) > idx ? var.db_names[idx] : u
     }
   } : {}
 }
