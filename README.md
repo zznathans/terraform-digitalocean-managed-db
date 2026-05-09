@@ -89,6 +89,55 @@ module "db" {
 }
 ```
 
+### With GCP global secret (automatic replication)
+
+```hcl
+module "db" {
+  source = "git::https://github.com/zznathans/terraform-digitalocean-managed-db.git"
+
+  stack_name     = "myapp"
+  engine         = "pg"
+  engine_version = "16"
+  region         = "nyc1"
+  vpc_name       = "my-vpc"
+  project_id     = "abc123"
+
+  db_names = ["myapp"]
+  db_users = ["myapp"]
+
+  push_gcp_secret     = true
+  gcp_project         = "my-gcp-project"
+  gcp_secret_regional = false
+  gcp_replication     = { automatic = true }
+}
+```
+
+### With GCP global secret (user-managed replication)
+
+```hcl
+module "db" {
+  source = "git::https://github.com/zznathans/terraform-digitalocean-managed-db.git"
+
+  stack_name     = "myapp"
+  engine         = "pg"
+  engine_version = "16"
+  region         = "nyc1"
+  vpc_name       = "my-vpc"
+  project_id     = "abc123"
+
+  db_names = ["myapp"]
+  db_users = ["myapp"]
+
+  push_gcp_secret     = true
+  gcp_project         = "my-gcp-project"
+  gcp_secret_regional = false
+  gcp_replication = {
+    automatic = false
+    locations = ["us-central1", "us-east1"]
+  }
+}
+```
+
 ## Variables
 
 ### Core
@@ -134,7 +183,18 @@ All lists default to `[]`. The firewall resource is only created when at least o
 | `push_gcp_secret` | `bool` | `false` | Push connection credentials to GCP Secret Manager |
 | `push_metrics_to_gcp_secret` | `bool` | `false` | Push metrics credentials to GCP Secret Manager |
 | `gcp_project` | `string` | `null` | GCP project ID (required if either GCP flag is `true`) |
-| `gcp_region` | `string` | `null` | GCP region for Secret Manager (required if either GCP flag is `true`) |
+| `gcp_secret_regional` | `bool` | `true` | `true` = regional secret (requires `gcp_region`); `false` = global secret with replication policy (requires `gcp_replication`) |
+| `gcp_region` | `string` | `null` | GCP region for regional secrets (required when `gcp_secret_regional = true`) |
+| `gcp_replication` | `object` | `{automatic=true}` | Replication policy for global secrets (used when `gcp_secret_regional = false`) |
+
+#### `gcp_replication` object
+
+Only used when `gcp_secret_regional = false`.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `automatic` | `bool` | `true` | `true` = Google-managed automatic replication; `false` = user-managed replication to specific `locations` |
+| `locations` | `list(string)` | `[]` | GCP regions to replicate into (e.g. `["us-central1", "us-east1"]`). Only used when `automatic = false`. |
 
 ### AWS Secrets Manager
 
@@ -219,7 +279,9 @@ For deployments that use the GCP or AWS integrations, the runner must have crede
 | `digitalocean_database_user.user` | One per entry in `db_users` |
 | `digitalocean_database_connection_pool.pool` | PostgreSQL only; one per user/db pair |
 | `digitalocean_database_firewall.firewall` | When at least one firewall list is non-empty |
-| `google_secret_manager_regional_secret.user` | When `push_gcp_secret = true` |
-| `google_secret_manager_regional_secret.metrics` | When `push_metrics_to_gcp_secret = true` |
+| `google_secret_manager_regional_secret.user` | When `push_gcp_secret = true` and `gcp_secret_regional = true` |
+| `google_secret_manager_regional_secret.metrics` | When `push_metrics_to_gcp_secret = true` and `gcp_secret_regional = true` |
+| `google_secret_manager_secret.user` | When `push_gcp_secret = true` and `gcp_secret_regional = false` |
+| `google_secret_manager_secret.metrics` | When `push_metrics_to_gcp_secret = true` and `gcp_secret_regional = false` |
 | `aws_secretsmanager_secret.user` | When `push_aws_secret = true` |
 | `aws_secretsmanager_secret.metrics` | When `push_metrics_to_aws_secret = true` |
