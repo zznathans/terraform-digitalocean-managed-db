@@ -1,4 +1,5 @@
 resource "digitalocean_database_firewall" "firewall" {
+  count      = (length(var.firewall_droplets) + length(var.firewall_tags) + length(var.firewall_k8s) + length(var.firewall_ips)) > 0 ? 1 : 0
   cluster_id = digitalocean_database_cluster.cluster.id
 
   dynamic "rule" {
