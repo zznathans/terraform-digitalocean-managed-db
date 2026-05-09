@@ -1,21 +1,36 @@
-# do_db
+# terraform-digitalocean-managed-db
 
-Terraform module for provisioning a DigitalOcean managed database cluster with optional connection pooling, firewall rules, and GCP Secret Manager integration.
+Terraform module for provisioning a DigitalOcean managed database cluster with optional connection pooling, firewall rules, and credential storage in GCP Secret Manager and/or AWS Secrets Manager.
 
 ## Features
 
-- Provisions a DigitalOcean managed database cluster (PostgreSQL or other supported engines)
+- Provisions a DigitalOcean managed database cluster (PostgreSQL, MySQL, or Redis)
 - Creates databases and users
-- Configures connection pools (PgBouncer) for PostgreSQL clusters — one pool per user/database combination
-- Sets up database firewall rules (droplets, tags, Kubernetes clusters, IP addresses)
+- Configures PgBouncer connection pools for PostgreSQL — one pool per user/database pair
+- Sets up database firewall rules (droplets, tags, Kubernetes clusters, IP addresses) — skipped when all lists are empty
+- Attaches the cluster to an existing VPC
+- Optionally restores from a backup
 - Optionally stores connection credentials in GCP Secret Manager (regional)
 - Optionally stores database metrics credentials in GCP Secret Manager
+- Optionally stores connection credentials in AWS Secrets Manager with cross-region replication support
+- Optionally stores database metrics credentials in AWS Secrets Manager
+
+## Requirements
+
+| Name | Version |
+|------|---------|
+| Terraform / OpenTofu | `>= 1.3.0` |
+| [digitalocean](https://registry.terraform.io/providers/digitalocean/digitalocean/latest) | `~> 2.0` |
+| [google](https://registry.terraform.io/providers/hashicorp/google/latest) | `>= 4.0` — only if `push_gcp_secret = true` or `push_metrics_to_gcp_secret = true` |
+| [aws](https://registry.terraform.io/providers/hashicorp/aws/latest) | `>= 5.0` — only if `push_aws_secret = true` or `push_metrics_to_aws_secret = true` |
+
+> **Note:** All three providers are declared in `required_providers`, so OpenTofu will initialise them regardless of feature flags. Configure credentials only for the providers you use; unconfigured providers will not cause failures when their feature flags are `false`.
 
 ## Usage
 
 ```hcl
 module "db" {
-  source = "git::https://gitlab-ca-tor-1.yeetbox.net/terraform/postgresdb.git"
+  source = "git::https://github.com/zznathans/terraform-digitalocean-managed-db.git"
 
   stack_name     = "myapp"
   engine         = "pg"
@@ -30,72 +45,181 @@ module "db" {
   instance_size = "db-s-1vcpu-1gb"
   node_count    = 1
 
+  tags = { env = "production", team = "platform" }
+
   firewall_tags = ["my-k8s-tag"]
 
-  push_gcp_secret    = true
-  gcp_project        = "my-gcp-project"
-  gcp_region         = "northamerica-northeast2"
+  push_gcp_secret = true
+  gcp_project     = "my-gcp-project"
+  gcp_region      = "northamerica-northeast2"
+
+  push_aws_secret = true
+  aws_region      = "us-east-1"
+}
+```
+
+### With metrics and cross-region AWS replication
+
+```hcl
+module "db" {
+  source = "git::https://github.com/zznathans/terraform-digitalocean-managed-db.git"
+
+  stack_name     = "myapp"
+  engine         = "pg"
+  engine_version = "16"
+  region         = "nyc1"
+  vpc_name       = "my-vpc"
+  project_id     = "abc123"
+
+  db_names = ["myapp"]
+  db_users = ["myapp"]
+
+  push_gcp_secret            = true
+  push_metrics_to_gcp_secret = true
+  gcp_project                = "my-gcp-project"
+  gcp_region                 = "us-east1"
+
+  push_aws_secret            = true
+  push_metrics_to_aws_secret = true
+  aws_region                 = "us-east-1"
+  aws_replicas = [
+    { region = "us-west-2" },
+    { region = "eu-west-1", kms_key_id = "arn:aws:kms:eu-west-1:123456789012:key/mrk-abc123" }
+  ]
 }
 ```
 
 ## Variables
 
+### Core
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| `stack_name` | `string` | — | yes | Name prefix applied to all resources |
+| `engine` | `string` | — | yes | Database engine: `pg`, `mysql`, or `redis` |
+| `engine_version` | `string` | — | yes | Engine version (e.g. `16`) |
+| `region` | `string` | — | yes | DigitalOcean region slug (e.g. `tor1`, `nyc1`) |
+| `vpc_name` | `string` | — | yes | Name of an existing DigitalOcean VPC to attach the cluster to |
+| `project_id` | `string` | — | yes | DigitalOcean project ID |
+| `instance_size` | `string` | `"db-s-1vcpu-1gb"` | no | Cluster node size slug |
+| `node_count` | `number` | `1` | no | Number of nodes in the cluster |
+| `db_names` | `list(string)` | `[]` | no | Database names to create |
+| `db_users` | `list(string)` | `[]` | no | Database users to create |
+| `backup_source` | `string` | `""` | no | Name of a database to restore from backup (omit to start fresh) |
+| `tags` | `map(string)` | `{}` | no | Tags merged into all supported resources. Applied as labels on GCP secrets and tags on AWS secrets. GCP requires lowercase keys and values. |
+
+### Connection pooling (PostgreSQL only)
+
 | Name | Type | Default | Description |
 |------|------|---------|-------------|
-| `stack_name` | `string` | — | Name prefix for all resources |
-| `engine` | `string` | — | Database engine (e.g. `pg`, `mysql`, `redis`) |
-| `engine_version` | `string` | — | Engine version |
-| `region` | `string` | — | DigitalOcean region slug |
-| `vpc_name` | `string` | — | Name of the existing DigitalOcean VPC |
-| `project_id` | `string` | — | DigitalOcean project ID |
-| `db_names` | `list` | `[]` | Database names to create |
-| `db_users` | `list` | `[]` | Database users to create |
-| `instance_size` | `string` | `db-s-1vcpu-1gb` | Cluster instance size |
-| `node_count` | `number` | `1` | Number of nodes |
-| `backup_source` | `string` | `""` | Restore from a backup of this database name |
-| `conn_pool_size` | `number` | `5` | Connection pool size (PostgreSQL only) |
-| `conn_pool_mode` | `string` | `transaction` | PgBouncer pool mode (PostgreSQL only) |
-| `firewall_droplets` | `list` | `[]` | Droplet IDs to allow |
-| `firewall_tags` | `list` | `[]` | DigitalOcean tags to allow |
-| `firewall_k8s` | `list` | `[]` | Kubernetes cluster UUIDs to allow |
-| `firewall_ips` | `list` | `[]` | IP addresses to allow |
+| `conn_pool_size` | `number` | `5` | PgBouncer pool size per pool |
+| `conn_pool_mode` | `string` | `"transaction"` | PgBouncer mode: `transaction`, `session`, or `statement` |
+| `append_port_to_hostname` | `bool` | `false` | When `true`, the `db_host` field in secrets is `host:port` instead of just `host` |
+
+### Firewall
+
+All lists default to `[]`. The firewall resource is only created when at least one list is non-empty.
+
+| Name | Type | Description |
+|------|------|-------------|
+| `firewall_droplets` | `list(string)` | Droplet IDs to allow |
+| `firewall_tags` | `list(string)` | DigitalOcean tags to allow |
+| `firewall_k8s` | `list(string)` | Kubernetes cluster UUIDs to allow |
+| `firewall_ips` | `list(string)` | IP addresses to allow |
+
+### GCP Secret Manager
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
 | `push_gcp_secret` | `bool` | `false` | Push connection credentials to GCP Secret Manager |
-| `gcp_project` | `string` | — | GCP project ID (required if pushing secrets) |
-| `gcp_region` | `string` | — | GCP region for Secret Manager (required if pushing secrets) |
-| `append_port_to_hostname` | `bool` | `false` | Append `:port` to the `db_host` value in secrets |
 | `push_metrics_to_gcp_secret` | `bool` | `false` | Push metrics credentials to GCP Secret Manager |
+| `gcp_project` | `string` | `null` | GCP project ID (required if either GCP flag is `true`) |
+| `gcp_region` | `string` | `null` | GCP region for Secret Manager (required if either GCP flag is `true`) |
 
-## GCP Secret Structure
+### AWS Secrets Manager
 
-When `push_gcp_secret = true`, a regional secret is created per user (or per user/database pool combination for PostgreSQL). The secret value is JSON:
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `push_aws_secret` | `bool` | `false` | Push connection credentials to AWS Secrets Manager |
+| `push_metrics_to_aws_secret` | `bool` | `false` | Push metrics credentials to AWS Secrets Manager |
+| `aws_region` | `string` | `null` | AWS region for Secrets Manager (required if either AWS flag is `true`) |
+| `aws_replicas` | `list(object)` | `[]` | Additional regions to replicate each AWS secret into (see below) |
 
-```json
-{
-  "db_host": "host[:port]",
-  "db_port": 25060,
-  "db_user": "myuser",
-  "db_password": "...",
-  "db_name": "mydb"
-}
-```
+#### `aws_replicas` object
 
-Secret IDs follow the pattern:
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `region` | `string` | — | AWS region to replicate the secret into |
+| `kms_key_id` | `string` | `null` | ARN, key ID, or alias of the KMS key in the replica region. Omit to use `aws/secretsmanager`. |
+
+## Outputs
+
+| Name | Description |
+|------|-------------|
+| `cluster_id` | DigitalOcean cluster ID |
+| `cluster_host` | Public hostname of the cluster |
+| `cluster_private_host` | Private hostname (within the VPC) |
+| `cluster_port` | Port the cluster listens on |
+| `cluster_uri` | Full connection URI (sensitive) |
+| `cluster_private_uri` | Full private connection URI (sensitive) |
+
+## Secret structure
+
+### Connection credentials
+
+One secret is created per user (or per user/database pool for PostgreSQL). The secret ID follows the pattern:
+
 - With connection pools: `{stack_name}-db-{user}-{db_name}`
 - Without pools: `{stack_name}-db-user-{user}`
 
-When `push_metrics_to_gcp_secret = true`, a secret named `{stack_name}-db-metrics` is created:
+```json
+{
+  "db_host":     "private-host[:port]",
+  "db_port":     25060,
+  "db_user":     "myuser",
+  "db_password": "...",
+  "db_name":     "mydb"
+}
+```
+
+`db_name` is `null` when no database name is associated with the user. `db_host` includes the port suffix when `append_port_to_hostname = true`.
+
+### Metrics credentials
+
+One secret named `{stack_name}-db-metrics` is created when `push_metrics_to_gcp_secret = true` or `push_metrics_to_aws_secret = true`.
 
 ```json
 {
   "metrics_username": "...",
   "metrics_password": "...",
-  "metrics_endpoint": { ... }
+  "metrics_endpoint": "..."
 }
 ```
 
-## Providers
+## CI/CD
 
-| Provider | Source |
-|----------|--------|
-| `digitalocean` | `digitalocean/digitalocean` |
-| `google` | `hashicorp/google` |
+Validation runs on all pull requests. Releases are cut automatically from `main` using [semantic-release](https://semantic-release.gitbook.io/) based on conventional commits.
+
+The `GITHUB_TOKEN` secret is provided automatically by GitHub Actions. No additional secrets are required for CI validation — providers are initialised without credentials and `tofu validate` does not contact any APIs.
+
+For deployments that use the GCP or AWS integrations, the runner must have credentials available:
+
+| Provider | Credential |
+|----------|-----------|
+| DigitalOcean | `DIGITALOCEAN_TOKEN` environment variable |
+| GCP | `GOOGLE_APPLICATION_CREDENTIALS` pointing to a service account key with `roles/secretmanager.admin` |
+| AWS | Standard AWS credential chain (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` or an instance role) with `secretsmanager:CreateSecret`, `secretsmanager:PutSecretValue`, `secretsmanager:TagResource`, and `secretsmanager:ReplicateSecretToRegions` |
+
+## Resources
+
+| Resource | Condition |
+|----------|-----------|
+| `digitalocean_database_cluster.cluster` | Always |
+| `digitalocean_database_db.db` | One per entry in `db_names` |
+| `digitalocean_database_user.user` | One per entry in `db_users` |
+| `digitalocean_database_connection_pool.pool` | PostgreSQL only; one per user/db pair |
+| `digitalocean_database_firewall.firewall` | When at least one firewall list is non-empty |
+| `google_secret_manager_regional_secret.user` | When `push_gcp_secret = true` |
+| `google_secret_manager_regional_secret.metrics` | When `push_metrics_to_gcp_secret = true` |
+| `aws_secretsmanager_secret.user` | When `push_aws_secret = true` |
+| `aws_secretsmanager_secret.metrics` | When `push_metrics_to_aws_secret = true` |
