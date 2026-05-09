@@ -117,6 +117,21 @@ variable "gcp_region" {
   description = "GCP region for Secret Manager (required if push_gcp_secret = true or push_metrics_to_gcp_secret = true)"
 }
 
+variable "gcp_secret_regional" {
+  type        = bool
+  default     = true
+  description = "When true, create a regional secret (requires gcp_region). When false, create a global secret with a replication policy (requires gcp_replication)."
+}
+
+variable "gcp_replication" {
+  type = object({
+    automatic = optional(bool, true)
+    locations = optional(list(string), [])
+  })
+  default     = { automatic = true, locations = [] }
+  description = "Replication policy for global GCP secrets (used when gcp_secret_regional = false). Set automatic = true for Google-managed replication, or set automatic = false and provide locations for user-managed replication."
+}
+
 variable "push_metrics_to_gcp_secret" {
   type    = bool
   default = false
