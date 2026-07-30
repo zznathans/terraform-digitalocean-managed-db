@@ -98,6 +98,18 @@ variable "vpc_name" {
   type = string
 }
 
+variable "create_vpc" {
+  type        = bool
+  default     = false
+  description = "When true, create a new VPC named vpc_name in region instead of looking up an existing one."
+}
+
+variable "vpc_ip_range" {
+  type        = string
+  default     = null
+  description = "CIDR range for the VPC when create_vpc = true. Omit to let DigitalOcean auto-assign one."
+}
+
 # GCP Secret Manager
 
 variable "push_gcp_secret" {
