@@ -9,6 +9,7 @@ Terraform module for provisioning a DigitalOcean managed database cluster with o
 - Configures PgBouncer connection pools for PostgreSQL — one pool per user/database pair
 - Sets up database firewall rules (droplets, tags, Kubernetes clusters, IP addresses) — skipped when all lists are empty
 - Attaches the cluster to a VPC — either an existing one, or a new one created alongside the cluster
+- Attaches the cluster to a project — either an existing one, or a new one created alongside the cluster
 - Optionally restores from a backup
 - Optionally stores connection credentials in GCP Secret Manager (regional)
 - Optionally stores database metrics credentials in GCP Secret Manager
@@ -58,9 +59,9 @@ module "db" {
 }
 ```
 
-### With a dedicated VPC
+### With a dedicated VPC and project
 
-By default `vpc_name` must match an existing VPC. Set `create_vpc = true` to have the module create it instead:
+By default `vpc_name` must match an existing VPC and `project_id` must match an existing project. Set `create_vpc` / `create_project` to have the module create them instead:
 
 ```hcl
 module "db" {
@@ -70,9 +71,12 @@ module "db" {
   engine         = "mysql"
   engine_version = "8"
   region         = "nyc1"
-  vpc_name       = "myapp-vpc"
-  create_vpc     = true
-  project_id     = "abc123"
+
+  vpc_name   = "myapp-vpc"
+  create_vpc = true
+
+  project_name   = "myapp"
+  create_project = true
 
   db_names = ["myapp"]
   db_users = ["myapp"]
@@ -172,7 +176,9 @@ module "db" {
 | `vpc_name` | `string` | — | yes | Name of the VPC to attach the cluster to — an existing VPC by default, or a newly created one when `create_vpc = true` |
 | `create_vpc` | `bool` | `false` | no | When `true`, create a new VPC named `vpc_name` in `region` instead of looking up an existing one |
 | `vpc_ip_range` | `string` | `null` | no | CIDR range for the VPC when `create_vpc = true`. Omit to let DigitalOcean auto-assign one. |
-| `project_id` | `string` | — | yes | DigitalOcean project ID |
+| `project_id` | `string` | `null` | no* | Existing DigitalOcean project ID to attach the cluster to. *Required unless `create_project = true`. |
+| `create_project` | `bool` | `false` | no | When `true`, create a new DigitalOcean project named `project_name` and attach the cluster to it, instead of using an existing `project_id` |
+| `project_name` | `string` | `null` | no | Name for the new project when `create_project = true` |
 | `instance_size` | `string` | `"db-s-1vcpu-1gb"` | no | Cluster node size slug |
 | `node_count` | `number` | `1` | no | Number of nodes in the cluster |
 | `db_names` | `list(string)` | `[]` | no | Database names to create |
@@ -299,6 +305,7 @@ For deployments that use the GCP or AWS integrations, the runner must have crede
 |----------|-----------|
 | `digitalocean_database_cluster.cluster` | Always |
 | `digitalocean_vpc.this` | When `create_vpc = true` |
+| `digitalocean_project.this` | When `create_project = true` |
 | `digitalocean_database_db.db` | One per entry in `db_names` |
 | `digitalocean_database_user.user` | One per entry in `db_users` |
 | `digitalocean_database_connection_pool.pool` | PostgreSQL only; one per user/db pair |

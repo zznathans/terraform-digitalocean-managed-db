@@ -60,7 +60,21 @@ variable "backup_source" {
 }
 
 variable "project_id" {
-  type = string
+  type        = string
+  default     = null
+  description = "Existing DigitalOcean project ID to attach the cluster to. Required unless create_project = true."
+}
+
+variable "create_project" {
+  type        = bool
+  default     = false
+  description = "When true, create a new DigitalOcean project named project_name and attach the cluster to it, instead of using an existing project_id."
+}
+
+variable "project_name" {
+  type        = string
+  default     = null
+  description = "Name for the new project when create_project = true."
 }
 
 variable "firewall_droplets" {

@@ -5,7 +5,7 @@ resource "digitalocean_database_cluster" "cluster" {
   region               = var.region
   size                 = var.instance_size
   node_count           = var.node_count
-  project_id           = var.project_id
+  project_id           = local.project_id
   private_network_uuid = local.vpc_id
 
   dynamic "backup_restore" {
